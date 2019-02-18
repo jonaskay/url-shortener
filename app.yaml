@@ -1,1 +1,3 @@
 runtime: go111
+env_variables:
+  DEFAULT_REDIRECT_LOCATION: 'http://www.example.com/'
