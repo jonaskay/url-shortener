@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"google.golang.org/appengine"
@@ -51,12 +54,7 @@ func TestRedirecting(t *testing.T) {
 			}
 
 			ctx := appengine.NewContext(req)
-			key := datastore.NewKey(ctx, "Link", "example", 0, nil)
-			if _, err := datastore.Put(
-				ctx,
-				key,
-				&Link{Location: "http://www.example.com/example"},
-			); err != nil {
+			if err := seedDatastore(ctx); err != nil {
 				t.Fatal(err)
 			}
 
@@ -92,4 +90,99 @@ func TestRedirecting(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSaving(t *testing.T) {
+	tt := []struct {
+		name   string
+		id     string
+		status int
+		diff   int
+	}{
+		{
+			name:   "link with new id",
+			id:     "foobar",
+			status: 204,
+			diff:   1,
+		},
+		{
+			name:   "link with existing id",
+			id:     "example",
+			status: 204,
+			diff:   0,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			inst, err := aetest.NewInstance(nil)
+			if err != nil {
+				t.Fatalf("Failed to create instance: %v", err)
+			}
+			defer inst.Close()
+
+			form := url.Values{}
+			form.Add("id", tc.id)
+			form.Add("location", "http://www.example.com")
+
+			req, err := inst.NewRequest(
+				"POST",
+				"/links",
+				strings.NewReader(form.Encode()),
+			)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			req.Header.Add(
+				"Content-Type",
+				"application/x-www-form-urlencoded",
+			)
+
+			ctx := appengine.NewContext(req)
+			if err := seedDatastore(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			q := datastore.NewQuery("Link")
+			c1, err := q.Count(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rec := httptest.NewRecorder()
+
+			saveHandler(rec, req)
+			res := rec.Result()
+
+			if res.StatusCode != tc.status {
+				t.Errorf(
+					"Status code %v, want %v",
+					res.StatusCode,
+					tc.status,
+				)
+			}
+
+			c2, err := q.Count(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			diff := c2 - c1
+			if diff != tc.diff {
+				t.Errorf(
+					"Link count diff %d, want %d",
+					diff,
+					tc.diff,
+				)
+			}
+		})
+	}
+}
+
+func seedDatastore(c context.Context) error {
+	k := datastore.NewKey(c, "Link", "example", 0, nil)
+	l := &Link{Location: "http://www.example.com/example"}
+	_, err := datastore.Put(c, k, l)
+	return err
 }
