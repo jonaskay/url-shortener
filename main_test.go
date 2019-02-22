@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -12,6 +14,76 @@ import (
 	"google.golang.org/appengine/aetest"
 	"google.golang.org/appengine/datastore"
 )
+
+func TestAuthorizeUserFromJSON(t *testing.T) {
+	ctx, done, err := aetest.NewContext()
+	if err != nil {
+		t.Fatalf("Failed to create context: %v", err)
+	}
+	defer done()
+
+	if err := seedTestDatastore(ctx); err != nil {
+		t.Fatalf("Failed to seed datastore: %v", err)
+	}
+
+	tt := []struct {
+		name string
+		json []byte
+		want error
+	}{
+		{
+			name: "authorized email",
+			json: []byte(`{"id":"42"}`),
+			want: nil,
+		},
+		{
+			name: "unauthorized email",
+			json: []byte(`{"id":"1337"}`),
+			want: errors.New("Failed to authorize user"),
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			if err = authorizeUserFromJSON(tc.json, ctx); err != nil {
+				if err.Error() != tc.want.Error() {
+					t.Errorf(
+						`Error "%v", want "%v"`,
+						err,
+						tc.want,
+					)
+				}
+			}
+		})
+	}
+}
+
+func TestOauthRedirect(t *testing.T) {
+	os.Setenv("BASE_URL", "http://www.example.com")
+
+	inst, err := aetest.NewInstance(nil)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer inst.Close()
+
+	req, err := inst.NewRequest("GET", "/oauth", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	rec := httptest.NewRecorder()
+
+	oauthHandler(rec, req)
+	res := rec.Result()
+
+	if res.StatusCode != http.StatusTemporaryRedirect {
+		t.Errorf(
+			"Status code %v, want %v",
+			res.StatusCode,
+			http.StatusTemporaryRedirect,
+		)
+	}
+}
 
 func TestRedirecting(t *testing.T) {
 	os.Setenv("DEFAULT_REDIRECT_LOCATION", "http://www.example.com/")
@@ -54,7 +126,7 @@ func TestRedirecting(t *testing.T) {
 			}
 
 			ctx := appengine.NewContext(req)
-			if err := seedDatastore(ctx); err != nil {
+			if err := seedTestDatastore(ctx); err != nil {
 				t.Fatal(err)
 			}
 
@@ -140,7 +212,7 @@ func TestSaving(t *testing.T) {
 			)
 
 			ctx := appengine.NewContext(req)
-			if err := seedDatastore(ctx); err != nil {
+			if err := seedTestDatastore(ctx); err != nil {
 				t.Fatal(err)
 			}
 
@@ -180,9 +252,18 @@ func TestSaving(t *testing.T) {
 	}
 }
 
-func seedDatastore(c context.Context) error {
+func seedTestDatastore(c context.Context) error {
 	k := datastore.NewKey(c, "Link", "example", 0, nil)
 	l := &Link{Location: "http://www.example.com/example"}
-	_, err := datastore.Put(c, k, l)
+	if _, err := datastore.Put(c, k, l); err != nil {
+		return err
+	}
+
+	k = datastore.NewKey(c, "User", "42", 0, nil)
+	u := &User{
+		Email:   "jane@example.com",
+		Picture: "http://www.example.com/example.jpg",
+	}
+	_, err := datastore.Put(c, k, u)
 	return err
 }

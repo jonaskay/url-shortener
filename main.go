@@ -1,21 +1,119 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 )
+
+type User struct {
+	ID      string
+	Email   string
+	Picture string
+}
 
 type Link struct {
 	Location string
 }
 
 func main() {
+	http.HandleFunc("/login.html", loginHandler)
+	http.HandleFunc("/oauth", oauthHandler)
+	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
 	http.HandleFunc("/links", saveHandler)
 	http.HandleFunc("/", redirectHandler)
 	appengine.Main()
+}
+
+func oauthConfig() *oauth2.Config {
+	jsonFile, err := os.Open("client_credentials.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer jsonFile.Close()
+
+	json, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config, err := google.ConfigFromJSON(
+		json,
+		"https://www.googleapis.com/auth/userinfo.email",
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return config
+}
+
+func authorizeUserFromJSON(data []byte, c context.Context) error {
+	u := new(User)
+	if err := json.Unmarshal(data, u); err != nil {
+		log.Fatal(err)
+	}
+
+	k := datastore.NewKey(c, "User", u.ID, 0, nil)
+
+	if err := datastore.Get(c, k, new(User)); err != nil {
+		return errors.New("Failed to authorize user")
+	}
+	return nil
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, r.URL.Path[1:])
+}
+
+func oauthHandler(w http.ResponseWriter, r *http.Request) {
+	conf := oauthConfig()
+
+	// TODO: Generate a random state token
+	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	return
+}
+
+func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	conf := oauthConfig()
+
+	// TODO: Validate state token
+	q := r.URL.Query()
+	code := q.Get("code")
+	tok, err := conf.Exchange(context.TODO(), code)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client := conf.Client(context.Background(), tok)
+	res, err := client.Get("https://www.googleapis.com/userinfo/v2/me")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	ctx := appengine.NewContext(r)
+
+	err = authorizeUserFromJSON(body, ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	// TODO: Redirect to link index
+	fmt.Fprint(w, "Welcome!")
+	return
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
