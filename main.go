@@ -57,18 +57,19 @@ func oauthConfig() *oauth2.Config {
 	return config
 }
 
-func authorizeUserFromJSON(data []byte, c context.Context) error {
+func authorizeUserFromJSON(data []byte, c context.Context) (*User, error) {
 	u := new(User)
 	if err := json.Unmarshal(data, u); err != nil {
 		log.Fatal(err)
 	}
 
 	k := datastore.NewKey(c, "User", u.ID, 0, nil)
-
-	if err := datastore.Get(c, k, new(User)); err != nil {
-		return errors.New("Failed to authorize user")
+	user := new(User)
+	if err := datastore.Get(c, k, user); err != nil {
+		return nil, errors.New("Failed to authorize user")
 	}
-	return nil
+	user.ID = k.StringID()
+	return user, nil
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +106,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(res.Body)
 	ctx := appengine.NewContext(r)
 
-	err = authorizeUserFromJSON(body, ctx)
+	_, err = authorizeUserFromJSON(body, ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return

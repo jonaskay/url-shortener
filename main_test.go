@@ -28,28 +28,55 @@ func TestAuthorizeUserFromJSON(t *testing.T) {
 
 	tt := []struct {
 		name string
-		json []byte
-		want error
+		data []byte
+		err  error
+		user *User
 	}{
 		{
 			name: "authorized email",
-			json: []byte(`{"id":"42"}`),
-			want: nil,
+			data: []byte(`{"id":"42"}`),
+			err:  nil,
+			user: &User{ID: "42", Email: "jane@example.com"},
 		},
 		{
 			name: "unauthorized email",
-			json: []byte(`{"id":"1337"}`),
-			want: errors.New("Failed to authorize user"),
+			data: []byte(`{"id":"1337"}`),
+			err:  errors.New("Failed to authorize user"),
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-			if err = authorizeUserFromJSON(tc.json, ctx); err != nil {
-				if err.Error() != tc.want.Error() {
+			u, err := authorizeUserFromJSON(tc.data, ctx)
+			if err != nil {
+				if err.Error() != tc.err.Error() {
 					t.Errorf(
 						`Error "%v", want "%v"`,
 						err,
-						tc.want,
+						tc.err,
+					)
+				}
+			}
+			if tc.user == nil {
+				if u != tc.user {
+					t.Errorf(
+						"User %v, want %v",
+						u,
+						tc.user,
+					)
+				}
+			} else {
+				if u.ID != tc.user.ID {
+					t.Errorf(
+						"User ID %v, want %v",
+						u.ID,
+						tc.user.ID,
+					)
+				}
+				if u.Email != tc.user.Email {
+					t.Errorf(
+						"User email %v, want %v",
+						u.Email,
+						tc.user.Email,
 					)
 				}
 			}
