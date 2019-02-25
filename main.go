@@ -27,6 +27,10 @@ type Link struct {
 }
 
 func main() {
+	if err := seedData(); err != nil {
+		log.Fatal(err)
+	}
+
 	http.HandleFunc("/login.html", loginHandler)
 	http.HandleFunc("/oauth", oauthHandler)
 	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
