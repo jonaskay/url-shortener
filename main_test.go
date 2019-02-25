@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
@@ -81,6 +82,43 @@ func TestAuthorizeUserFromJSON(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSaveUserSession(t *testing.T) {
+	ctx, done, err := aetest.NewContext()
+	if err != nil {
+		t.Fatalf("Failed to create context: %v", err)
+	}
+	defer done()
+
+	u := &User{ID: "42"}
+
+	cl := testClock{}
+	s, err := saveUserSession(u, ctx, cl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	q := datastore.NewQuery("UserSession")
+	count, err := q.Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Errorf("UserSession count %v, want %v", count, 1)
+	}
+
+	if s.UserID != "42" {
+		t.Errorf("UserSession UserID %v, want %v", s.UserID, 42)
+	}
+
+	if !s.CreatedAt.Equal(cl.Now()) {
+		t.Errorf(
+			"UserSession CreatedAt %v, want %v",
+			s.CreatedAt,
+			cl.Now(),
+		)
 	}
 }
 
@@ -277,6 +315,20 @@ func TestSaving(t *testing.T) {
 			}
 		})
 	}
+}
+
+type testClock struct{}
+
+func (t testClock) Now() time.Time {
+	return time.Date(2006, time.January, 2, 15, 4, 5, 0, t.location())
+}
+
+func (t testClock) location() *time.Location {
+	l, err := time.LoadLocation("MST")
+	if err != nil {
+		panic(err)
+	}
+	return l
 }
 
 func seedTestDatastore(c context.Context) error {

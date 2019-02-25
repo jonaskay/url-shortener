@@ -9,7 +9,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/gorilla/sessions"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/appengine"
@@ -22,9 +24,23 @@ type User struct {
 	Picture string
 }
 
+type UserSession struct {
+	SessionKey string
+	UserID     string
+	CreatedAt  time.Time
+}
+
 type Link struct {
 	Location string
 }
+
+type clock interface {
+	Now() time.Time
+}
+
+type systemClock struct{}
+
+func (systemClock) Now() time.Time { return time.Now() }
 
 func main() {
 	if err := seedData(); err != nil {
@@ -76,6 +92,17 @@ func authorizeUserFromJSON(data []byte, c context.Context) (*User, error) {
 	return user, nil
 }
 
+func saveUserSession(u *User, ctx context.Context, cl clock) (*UserSession, error) {
+	s := &UserSession{UserID: u.ID, CreatedAt: cl.Now()}
+	k := datastore.NewIncompleteKey(ctx, "UserSession", nil)
+
+	if _, err := datastore.Put(ctx, k, s); err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, r.URL.Path[1:])
 }
@@ -110,10 +137,24 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(res.Body)
 	ctx := appengine.NewContext(r)
 
-	_, err = authorizeUserFromJSON(body, ctx)
+	user, err := authorizeUserFromJSON(body, ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
+	}
+
+	c := systemClock{}
+	saveUserSession(user, ctx, c)
+
+	// TODO: Add a random store key and don't store in source code
+	store := sessions.NewCookieStore([]byte("SESSION_KEY"))
+	session, err := store.Get(r, "session-name")
+	if err != nil {
+		log.Fatal(err)
+	}
+	session.Values["user_id"] = user.ID
+	if err = session.Save(r, w); err != nil {
+		log.Fatal(err)
 	}
 
 	// TODO: Redirect to link index
