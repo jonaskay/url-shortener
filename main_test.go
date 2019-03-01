@@ -131,6 +131,8 @@ func TestOauthRedirect(t *testing.T) {
 	}
 	defer inst.Close()
 
+	oauthConf = getOAuthConfig()
+
 	req, err := inst.NewRequest("GET", "/oauth", nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)

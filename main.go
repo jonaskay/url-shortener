@@ -35,26 +35,7 @@ type Link struct {
 	Location string
 }
 
-var store *sessions.CookieStore
-
-func main() {
-	if err := seedData(); err != nil {
-		log.Fatal(err)
-	}
-
-	// TODO: Add a random store key and don't store in source code
-	store = sessions.NewCookieStore([]byte("SESSION_KEY"))
-
-	http.HandleFunc("/login.html", viewHandler)
-	http.HandleFunc("/oauth", oauthHandler)
-	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
-	http.HandleFunc("/links.html", handlerWithAuth(linksHandler))
-	http.HandleFunc("/links", handlerWithAuth(saveHandler))
-	http.HandleFunc("/", redirectHandler)
-	appengine.Main()
-}
-
-func oauthConfig() *oauth2.Config {
+func getOAuthConfig() *oauth2.Config {
 	jsonFile, err := os.Open("client_credentials.json")
 	if err != nil {
 		log.Fatal(err)
@@ -74,6 +55,27 @@ func oauthConfig() *oauth2.Config {
 		log.Fatal(err)
 	}
 	return config
+}
+
+var store *sessions.CookieStore
+var oauthConf *oauth2.Config
+
+func main() {
+	if err := seedData(); err != nil {
+		log.Fatal(err)
+	}
+
+	// TODO: Add a random store key and don't store in source code
+	store = sessions.NewCookieStore([]byte("SESSION_KEY"))
+	oauthConf = getOAuthConfig()
+
+	http.HandleFunc("/login.html", viewHandler)
+	http.HandleFunc("/oauth", oauthHandler)
+	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
+	http.HandleFunc("/links.html", handlerWithAuth(linksHandler))
+	http.HandleFunc("/links", handlerWithAuth(saveHandler))
+	http.HandleFunc("/", redirectHandler)
+	appengine.Main()
 }
 
 func authorizeUserFromJSON(data []byte, c context.Context) (*User, error) {
@@ -103,10 +105,8 @@ func saveUserSession(u *User, ctx context.Context, cl clock) (*UserSession, erro
 }
 
 func oauthHandler(w http.ResponseWriter, r *http.Request) {
-	conf := oauthConfig()
-
 	// TODO: Generate a random state token
-	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	url := oauthConf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	return
 }
@@ -141,17 +141,15 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	conf := oauthConfig()
-
 	// TODO: Validate state token
 	q := r.URL.Query()
 	code := q.Get("code")
-	tok, err := conf.Exchange(context.TODO(), code)
+	tok, err := oauthConf.Exchange(context.TODO(), code)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	client := conf.Client(context.Background(), tok)
+	client := oauthConf.Client(context.Background(), tok)
 	res, err := client.Get("https://www.googleapis.com/userinfo/v2/me")
 	if err != nil {
 		log.Fatal(err)
