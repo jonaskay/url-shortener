@@ -158,17 +158,18 @@ func TestStoreUserSession(t *testing.T) {
 	}
 	defer inst.Close()
 
+	store = sessions.NewCookieStore([]byte("SESSION_KEY"))
+
 	req, err := inst.NewRequest("GET", "/", nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	s := sessions.NewCookieStore([]byte("SESSION_KEY"))
 	u := &User{ID: "42"}
 
-	storeUserSession(rec, req, s, u)
+	storeUserSession(rec, req, u)
 
-	sess, err := s.Get(req, "user")
+	sess, err := store.Get(req, "user")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +222,7 @@ func TestAuthentication(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			if tc.user != nil {
-				storeUserSession(rec, req, store, tc.user)
+				storeUserSession(rec, req, tc.user)
 			}
 
 			tc.handler(rec, req)

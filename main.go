@@ -122,8 +122,8 @@ func oauthHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func storeUserSession(w http.ResponseWriter, r *http.Request, s *sessions.CookieStore, u *User) {
-	sess, err := s.Get(r, "user")
+func storeUserSession(w http.ResponseWriter, r *http.Request, u *User) {
+	sess, err := store.Get(r, "user")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	c := systemClock{}
 	saveUserSession(user, ctx, c)
 
-	storeUserSession(w, r, store, user)
+	storeUserSession(w, r, user)
 
 	// TODO: Redirect to link index
 	fmt.Fprint(w, "Welcome!")
