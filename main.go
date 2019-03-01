@@ -35,14 +35,6 @@ type Link struct {
 	Location string
 }
 
-type clock interface {
-	Now() time.Time
-}
-
-type systemClock struct{}
-
-func (systemClock) Now() time.Time { return time.Now() }
-
 var store *sessions.CookieStore
 
 func main() {

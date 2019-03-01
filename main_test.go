@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gorilla/sessions"
 	"google.golang.org/appengine"
@@ -95,7 +94,7 @@ func TestSaveUserSession(t *testing.T) {
 
 	u := &User{ID: "42"}
 
-	cl := testClock{}
+	cl := fakeClock{}
 	s, err := saveUserSession(u, ctx, cl)
 	if err != nil {
 		t.Fatal(err)
@@ -424,20 +423,6 @@ func TestSaving(t *testing.T) {
 			}
 		})
 	}
-}
-
-type testClock struct{}
-
-func (t testClock) Now() time.Time {
-	return time.Date(2006, time.January, 2, 15, 4, 5, 0, t.location())
-}
-
-func (t testClock) location() *time.Location {
-	l, err := time.LoadLocation("MST")
-	if err != nil {
-		panic(err)
-	}
-	return l
 }
 
 func seedTestDatastore(c context.Context) error {
