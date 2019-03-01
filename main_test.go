@@ -348,13 +348,13 @@ func TestSaving(t *testing.T) {
 		{
 			name:   "link with new id",
 			id:     "foobar",
-			status: 204,
+			status: 307,
 			diff:   1,
 		},
 		{
 			name:   "link with existing id",
 			id:     "example",
-			status: 204,
+			status: 307,
 			diff:   0,
 		},
 	}
