@@ -6,5 +6,5 @@ before_install:
   - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
   - sudo apt-get update && sudo apt-get install google-cloud-sdk
   - gcloud info --format="value(installation.sdk_root)"
-  - $HOME/google-cloud-sdk/install.sh
+  - /usr/lib/google-cloud-sdk/install.sh
 script: go test
