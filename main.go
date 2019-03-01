@@ -216,7 +216,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	http.Redirect(w, r, "/links.html", http.StatusTemporaryRedirect)
 	return
 }
 
