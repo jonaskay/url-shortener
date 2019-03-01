@@ -198,18 +198,18 @@ func TestAuthentication(t *testing.T) {
 	}{
 		{
 			name:    "session with user_id",
-			handler: handlerWithAuth(indexHandler),
+			handler: handlerWithAuth(viewHandler),
 			user:    &User{ID: "42"},
 			status:  200,
 		},
 		{
 			name:    "session without user_id",
-			handler: handlerWithAuth(indexHandler),
+			handler: handlerWithAuth(viewHandler),
 			status:  401,
 		},
 		{
 			name:    "handler without authentication",
-			handler: indexHandler,
+			handler: viewHandler,
 			status:  200,
 		},
 	}

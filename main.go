@@ -52,10 +52,10 @@ func main() {
 	// TODO: Add a random store key and don't store in source code
 	store = sessions.NewCookieStore([]byte("SESSION_KEY"))
 
-	http.HandleFunc("/login.html", loginHandler)
+	http.HandleFunc("/login.html", viewHandler)
 	http.HandleFunc("/oauth", oauthHandler)
 	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
-	http.HandleFunc("/index.html", handlerWithAuth(indexHandler))
+	http.HandleFunc("/index.html", handlerWithAuth(viewHandler))
 	http.HandleFunc("/links", handlerWithAuth(saveHandler))
 	http.HandleFunc("/", redirectHandler)
 	appengine.Main()
@@ -109,10 +109,6 @@ func saveUserSession(u *User, ctx context.Context, cl clock) (*UserSession, erro
 	return s, nil
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, r.URL.Path[1:])
-}
-
 func oauthHandler(w http.ResponseWriter, r *http.Request) {
 	conf := oauthConfig()
 
@@ -147,8 +143,8 @@ func handlerWithAuth(fn func(http.ResponseWriter, *http.Request)) http.HandlerFu
 	}
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	return
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, r.URL.Path[1:])
 }
 
 func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
