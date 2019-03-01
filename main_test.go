@@ -205,7 +205,7 @@ func TestAuthentication(t *testing.T) {
 		{
 			name:    "session without user_id",
 			handler: handlerWithAuth(viewHandler),
-			status:  401,
+			status:  307,
 		},
 		{
 			name:    "handler without authentication",
@@ -236,6 +236,25 @@ func TestAuthentication(t *testing.T) {
 				)
 			}
 
+			if tc.status == http.StatusTemporaryRedirect {
+				loc, err := res.Location()
+				if err != nil {
+					t.Fatalf(
+						"Failed to get location: %v",
+						err,
+					)
+				}
+
+				path := loc.Path
+				want := "/login.html"
+				if path != want {
+					t.Errorf(
+						"Location %v, want %v",
+						path,
+						want,
+					)
+				}
+			}
 		})
 	}
 }

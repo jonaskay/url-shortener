@@ -135,7 +135,7 @@ func handlerWithAuth(fn func(http.ResponseWriter, *http.Request)) http.HandlerFu
 			log.Fatal(err)
 		}
 		if s.Values["user_id"] == nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			http.Redirect(w, r, "/login.html", http.StatusTemporaryRedirect)
 			return
 		}
 		fn(w, r)
@@ -179,8 +179,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	storeUserSession(w, r, user)
 
-	// TODO: Redirect to link index
-	fmt.Fprint(w, "Welcome!")
+	http.Redirect(w, r, "/index.html", http.StatusTemporaryRedirect)
 	return
 }
 
