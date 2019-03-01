@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/sessions"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
 	"google.golang.org/appengine/datastore"
@@ -147,6 +148,35 @@ func TestOauthRedirect(t *testing.T) {
 			res.StatusCode,
 			http.StatusTemporaryRedirect,
 		)
+	}
+}
+
+func TestStoreUserSession(t *testing.T) {
+	inst, err := aetest.NewInstance(nil)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer inst.Close()
+
+	req, err := inst.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	s := sessions.NewCookieStore([]byte("SESSION_KEY"))
+	u := &User{ID: "42"}
+
+	storeUserSession(rec, req, s, u)
+
+	sess, err := s.Get(req, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id := sess.Values["user_id"]
+	want := u.ID
+	if id != want {
+		t.Errorf("User ID %v, want %v", id, want)
 	}
 }
 

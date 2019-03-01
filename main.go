@@ -42,10 +42,15 @@ type systemClock struct{}
 
 func (systemClock) Now() time.Time { return time.Now() }
 
+var store *sessions.CookieStore
+
 func main() {
 	if err := seedData(); err != nil {
 		log.Fatal(err)
 	}
+
+	// TODO: Add a random store key and don't store in source code
+	store = sessions.NewCookieStore([]byte("SESSION_KEY"))
 
 	http.HandleFunc("/login.html", loginHandler)
 	http.HandleFunc("/oauth", oauthHandler)
@@ -116,6 +121,17 @@ func oauthHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func storeUserSession(w http.ResponseWriter, r *http.Request, s *sessions.CookieStore, u *User) {
+	sess, err := s.Get(r, "user")
+	if err != nil {
+		log.Fatal(err)
+	}
+	sess.Values["user_id"] = u.ID
+	if err = sess.Save(r, w); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	conf := oauthConfig()
 
@@ -146,16 +162,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	c := systemClock{}
 	saveUserSession(user, ctx, c)
 
-	// TODO: Add a random store key and don't store in source code
-	store := sessions.NewCookieStore([]byte("SESSION_KEY"))
-	session, err := store.Get(r, "session-name")
-	if err != nil {
-		log.Fatal(err)
-	}
-	session.Values["user_id"] = user.ID
-	if err = session.Save(r, w); err != nil {
-		log.Fatal(err)
-	}
+	storeUserSession(w, r, store, user)
 
 	// TODO: Redirect to link index
 	fmt.Fprint(w, "Welcome!")
