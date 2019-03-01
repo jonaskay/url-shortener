@@ -15,6 +15,13 @@ func seedData() error {
 		Email:   os.Getenv("USER_EMAIL"),
 		Picture: os.Getenv("USER_PICTURE"),
 	}
-	_, err := datastore.Put(ctx, k, u)
+	if _, err := datastore.Put(ctx, k, u); err != nil {
+		return err
+	}
+
+	k = datastore.NewKey(ctx, "Link", "example", 0, nil)
+	l := &Link{Location: "http://www.example.com"}
+	_, err := datastore.Put(ctx, k, l)
+
 	return err
 }

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/sessions"
@@ -54,7 +55,7 @@ func main() {
 	http.HandleFunc("/login.html", viewHandler)
 	http.HandleFunc("/oauth", oauthHandler)
 	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
-	http.HandleFunc("/links.html", handlerWithAuth(viewHandler))
+	http.HandleFunc("/links.html", handlerWithAuth(linksHandler))
 	http.HandleFunc("/links", handlerWithAuth(saveHandler))
 	http.HandleFunc("/", redirectHandler)
 	appengine.Main()
@@ -181,6 +182,24 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/index.html", http.StatusTemporaryRedirect)
 	return
+}
+
+func linksHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := appengine.NewContext(r)
+
+	var links []Link
+
+	q := datastore.NewQuery("Link")
+
+	if _, err := q.GetAll(ctx, &links); err != nil {
+		log.Fatal(err)
+	}
+
+	t, err := template.ParseFiles("links.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, links)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
