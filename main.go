@@ -54,7 +54,7 @@ func main() {
 	http.HandleFunc("/login.html", viewHandler)
 	http.HandleFunc("/oauth", oauthHandler)
 	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
-	http.HandleFunc("/index.html", handlerWithAuth(viewHandler))
+	http.HandleFunc("/links.html", handlerWithAuth(viewHandler))
 	http.HandleFunc("/links", handlerWithAuth(saveHandler))
 	http.HandleFunc("/", redirectHandler)
 	appengine.Main()
