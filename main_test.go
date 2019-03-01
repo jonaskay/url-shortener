@@ -180,6 +180,65 @@ func TestStoreUserSession(t *testing.T) {
 	}
 }
 
+func TestAuthentication(t *testing.T) {
+	inst, err := aetest.NewInstance(nil)
+	if err != nil {
+		t.Fatalf("Failed to create instance: %v", err)
+	}
+	defer inst.Close()
+
+	store = sessions.NewCookieStore([]byte("key"))
+
+	tt := []struct {
+		name    string
+		handler http.HandlerFunc
+		user    *User
+		status  int
+	}{
+		{
+			name:    "session with user_id",
+			handler: handlerWithAuth(indexHandler),
+			user:    &User{ID: "42"},
+			status:  200,
+		},
+		{
+			name:    "session without user_id",
+			handler: handlerWithAuth(indexHandler),
+			status:  401,
+		},
+		{
+			name:    "handler without authentication",
+			handler: indexHandler,
+			status:  200,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := inst.NewRequest("GET", "/", nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+			rec := httptest.NewRecorder()
+
+			if tc.user != nil {
+				storeUserSession(rec, req, store, tc.user)
+			}
+
+			tc.handler(rec, req)
+			res := rec.Result()
+
+			if res.StatusCode != tc.status {
+				t.Errorf(
+					"Status code %v, want %v",
+					res.StatusCode,
+					tc.status,
+				)
+			}
+
+		})
+	}
+}
+
 func TestRedirecting(t *testing.T) {
 	os.Setenv("DEFAULT_REDIRECT_LOCATION", "http://www.example.com/")
 

@@ -55,7 +55,8 @@ func main() {
 	http.HandleFunc("/login.html", loginHandler)
 	http.HandleFunc("/oauth", oauthHandler)
 	http.HandleFunc("/oauth/callback", oauthCallbackHandler)
-	http.HandleFunc("/links", saveHandler)
+	http.HandleFunc("/index.html", handlerWithAuth(indexHandler))
+	http.HandleFunc("/links", handlerWithAuth(saveHandler))
 	http.HandleFunc("/", redirectHandler)
 	appengine.Main()
 }
@@ -132,6 +133,24 @@ func storeUserSession(w http.ResponseWriter, r *http.Request, s *sessions.Cookie
 	}
 }
 
+func handlerWithAuth(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s, err := store.Get(r, "user")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if s.Values["user_id"] == nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		fn(w, r)
+	}
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	return
+}
+
 func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	conf := oauthConfig()
 
@@ -159,6 +178,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: Don't save the sessions in database
 	c := systemClock{}
 	saveUserSession(user, ctx, c)
 
