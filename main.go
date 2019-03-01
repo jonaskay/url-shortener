@@ -31,6 +31,7 @@ type UserSession struct {
 }
 
 type Link struct {
+	ID       string
 	Location string
 }
 
@@ -187,12 +188,16 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 func linksHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
-	var links []Link
+	var links []*Link
 
 	q := datastore.NewQuery("Link")
-
-	if _, err := q.GetAll(ctx, &links); err != nil {
+	k, err := q.GetAll(ctx, &links)
+	if err != nil {
 		log.Fatal(err)
+	}
+
+	for i, l := range links {
+		l.ID = k[i].StringID()
 	}
 
 	t, err := template.ParseFiles("links.html")
