@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/sessions"
+	"github.com/jonaskay/url-shortener/clock"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/aetest"
 	"google.golang.org/appengine/datastore"
@@ -94,7 +95,7 @@ func TestSaveUserSession(t *testing.T) {
 
 	u := &User{ID: "42"}
 
-	cl := fakeClock{}
+	cl := clock.FakeClock{}
 	s, err := saveUserSession(u, ctx, cl)
 	if err != nil {
 		t.Fatal(err)

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/sessions"
+	"github.com/jonaskay/url-shortener/clock"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/appengine"
@@ -93,7 +94,7 @@ func authorizeUserFromJSON(data []byte, c context.Context) (*User, error) {
 	return user, nil
 }
 
-func saveUserSession(u *User, ctx context.Context, cl clock) (*UserSession, error) {
+func saveUserSession(u *User, ctx context.Context, cl clock.Clock) (*UserSession, error) {
 	s := &UserSession{UserID: u.ID, CreatedAt: cl.Now()}
 	k := datastore.NewIncompleteKey(ctx, "UserSession", nil)
 
@@ -166,7 +167,7 @@ func oauthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Don't save the sessions in database
-	c := systemClock{}
+	c := clock.SystemClock{}
 	saveUserSession(user, ctx, c)
 
 	storeUserSession(w, r, user)
